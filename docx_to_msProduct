@@ -1,0 +1,72 @@
+<?php
+// Подключение библиотек
+require_once 'lib/docx_reader.php';
+require_once 'lib/PhpWord-master/src/PhpWord/Autoloader.php';
+\PhpOffice\PhpWord\Autoloader::register();
+// Подключение библиотек х
+
+// Перебираем все файлы
+$path = '/home/t/trywar4y/78ac.trywar.ru/public_html/docx/*'; // file filter, you could specify a extension using *.ext
+$files = explode("\n", trim(`find -L $path`)); // -L follows symlinks
+
+foreach ($files as $file) {
+  $arrFile = pathinfo($file);
+
+  // -- Если документ, собираем .html
+  if ($arrFile['extension'] == 'docx') {
+    // --- Ну, и навоим красоту в документе
+    $doc = new Docx_reader();
+    $doc->setFile($file);
+    if(!$doc->get_errors()) {
+        $html = $doc->to_html();
+        $plain_text = $doc->to_plain_text();
+    }
+
+    // --- Описание
+    $arrPurpose = explode('Описание', $html);
+    $arrPurpose[1] = strip_tags($arrPurpose[1]);
+    $sDescription = substr($arrPurpose[1], 0, strripos($arrPurpose[1], 'Назначение'));
+    echo $sDescription;
+    echo '<br>';
+
+    // --- Назначение
+    $arrPurpose = explode('Назначение', $html);
+    $arrPurpose[1] = strip_tags($arrPurpose[1]);
+    $sPurpose = substr($arrPurpose[1], 0, strripos($arrPurpose[1], 'Технические характеристик'));
+    echo $sPurpose;
+    echo '<br>';
+
+    // --- Далее таблицы
+    $source = \PhpOffice\PhpWord\IOFactory::load($file);
+    $writer = \PhpOffice\PhpWord\IOFactory::createWriter($source, 'HTML');
+    $name   = str_replace(".docx", ".html", $file);
+    $writer->save($name);
+
+    // --- Открываем, собираем .html
+    $html = file_get_contents($name);
+
+    // --- Топорно достаём таблицу
+    $htmlTable = substr($html, strripos($html, '<table'));
+
+    // --- Еще топорнее рубим её, хрящь хрящь! защищайся!
+    $arrTableTr = explode('<tr', $htmlTable);
+  	$arrTableTr = array_slice($arrTableTr, 1);
+  	foreach ($arrTableTr as $arrTableTrItem){
+  		$arrTableTd = explode('<td', $arrTableTrItem);
+      $key = substr(strip_tags($arrTableTd[1]), 1);
+      $key = preg_replace('/\s+/', ' ', $key);
+      $key = preg_replace("/('|\"|\r?\n)/", '', $key);
+      $key = str_replace("&nbsp;", '', $key);
+      $value = substr(strip_tags($arrTableTd[2]), 1);
+      $value = preg_replace('/\s+/', ' ', $value);
+      $value = preg_replace("/('|\"|\r?\n)/", '', $value);
+      $value = str_replace("&nbsp;", '', $value);
+  		$arrHtmlTable['"'.trim($key).'"'] = trim($value);
+  	}
+    ?><pre><?
+    print_r($arrHtmlTable);
+    ?></pre><?
+    echo '<hr>';
+  }
+}
+// Перебираем все файлы х

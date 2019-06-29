@@ -15,7 +15,7 @@ $modx->lexicon->load('minishop2:default');
 $modx->lexicon->load('minishop2:manager');
 
 // Параметры
-$file = '/home/t/trywar4y/78ac.trywar.ru/public_html/catalog.xml'; // Путь до файла
+$file = 'catalog.xml'; // Путь до файла
 $arrParams = []; // Куда что
 $templateOffer = 2; // Шаблон товара
 $templateCategory = 3; // Шаблон категории
