@@ -1,19 +1,34 @@
 <?php
+// Параметры
+$filesDir = '../docx/'; // Корневой каталог с файлами
+// Параметры х
+
 // Подключение библиотек
-require_once 'lib/docx_reader.php';
-require_once 'lib/PhpWord-master/src/PhpWord/Autoloader.php';
+require_once '../lib/PhpWord-master/src/PhpWord/Autoloader.php';
+require_once '../lib/docx_reader.php';
 \PhpOffice\PhpWord\Autoloader::register();
 // Подключение библиотек х
 
+
 // Перебираем все файлы
-$path = '/home/t/trywar4y/78ac.trywar.ru/public_html/docx/*'; // file filter, you could specify a extension using *.ext
+$arrProductsData = []; # Массив с товарами которые получились
+$idx = 1;
+$path = '../docx/*'; // file filter, you could specify a extension using *.ext
 $files = explode("\n", trim(`find -L $path`)); // -L follows symlinks
 
 foreach ($files as $file) {
   $arrFile = pathinfo($file);
+  $sCategoryName = basename(dirname(dirname($file)));
+  $sFileName = basename(dirname($file));
+  $arrProductData = []; # Всё что в папочке нашли
+
+  // -- Чистка параметров
+  $sFileName = str_replace('_', '"',substr($sFileName, mb_stristr($sFileName, '.') + 2));
+  $sCategoryName = substr($sCategoryName, mb_stristr($sCategoryName, '.') + 2);
 
   // -- Если документ, собираем .html
   if ($arrFile['extension'] == 'docx') {
+
     // --- Ну, и навоим красоту в документе
     $doc = new Docx_reader();
     $doc->setFile($file);
@@ -26,15 +41,17 @@ foreach ($files as $file) {
     $arrPurpose = explode('Описание', $html);
     $arrPurpose[1] = strip_tags($arrPurpose[1]);
     $sDescription = substr($arrPurpose[1], 0, strripos($arrPurpose[1], 'Назначение'));
-    echo $sDescription;
-    echo '<br>';
+    if (substr($sDescription, 0, 1) == ':')
+      $sDescription = substr($sDescription, 1);
+    $arrProductData['description'] = $sDescription;
 
     // --- Назначение
     $arrPurpose = explode('Назначение', $html);
     $arrPurpose[1] = strip_tags($arrPurpose[1]);
     $sPurpose = substr($arrPurpose[1], 0, strripos($arrPurpose[1], 'Технические характеристик'));
-    echo $sPurpose;
-    echo '<br>';
+    if (substr($sPurpose, 0, 1) == ':')
+      $sPurpose = substr($sPurpose, 1);
+    $arrProductData['purpose'] = $sPurpose;
 
     // --- Далее таблицы
     $source = \PhpOffice\PhpWord\IOFactory::load($file);
@@ -63,10 +80,37 @@ foreach ($files as $file) {
       $value = str_replace("&nbsp;", '', $value);
   		$arrHtmlTable['"'.trim($key).'"'] = trim($value);
   	}
-    ?><pre><?
-    print_r($arrHtmlTable);
-    ?></pre><?
-    echo '<hr>';
+    $arrProductData['params'] = $arrHtmlTable;
+
+    // --- Записываем название категории (Обрезая номер в начале)
+    $arrProductData['parent'] = $sCategoryName;
+
+    // --- Записываем название товара
+    $arrProductData['pagetitle'] = $sFileName;
+
+    // -- Поиск и добавление картинок
+    $results = scandir($arrFile['dirname']);
+    foreach ($results as $result) {
+        if ($result === '.' or $result === '..') continue;
+
+        $resultFormatFile = pathinfo($result, PATHINFO_EXTENSION);
+        if ($resultFormatFile == 'jpg' || $resultFormatFile == 'png' || $resultFormatFile == 'gif' || $resultFormatFile == 'JPG')
+          $arrProductData['pictures'][] = $arrFile['dirname'] . $result;
+    }
   }
+
+  if (!empty($arrProductData))
+    $arrProductsData[$idx] = $arrProductData;
+
+  $idx++;
 }
 // Перебираем все файлы х
+
+// /*
+?><pre><?
+if (!empty($arrProductsData)) {
+  print_r($arrProductsData);
+}
+?></pre><?
+// */
+?>
